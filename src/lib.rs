@@ -8,8 +8,8 @@ pub fn intersection([a, b]: [&IVec2; 2], [c, d]: [&IVec2; 2]) -> bool {
     let ab = *b - *a;
     let cd = *d - *c;
 
-    ab.perp_dot(*c - *a) * ab.perp_dot(*d - *a) < 0
-        && cd.perp_dot(*a - *c) * cd.perp_dot(*b - *c) < 0
+    ab.perp_dot(*c - *a) * ab.perp_dot(*d - *a) <= 0
+        && cd.perp_dot(*a - *c) * cd.perp_dot(*b - *c) <= 0
 }
 
 
@@ -82,5 +82,13 @@ mod intersection {
         let b = [&IVec2::new(10,0), &IVec2::new(10,10)];
 
         assert!(!intersection(a,b))
+    }
+
+    #[test]
+    fn a_b_collinear() {
+        let a = [&IVec2::new(0, 0), &IVec2::new(10, 10)];
+        let b = [&IVec2::new(10,10), &IVec2::new(20,20)];
+
+        assert!(intersection(a,b))
     }
 }
