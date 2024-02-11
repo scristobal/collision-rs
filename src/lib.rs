@@ -129,11 +129,7 @@ pub fn intersection_line_box(s: &L, b: &B) -> bool {
     let br = b.br().wedge(&s.vec());
 
     // all four corners are on the same side of `s`
-    if tl > 0 && tr > 0 && bl > 0 && br > 0 {
-        return false;
-    }
-
-    if tl < 0 && tr < 0 && bl < 0 && br < 0 {
+    if (tl > 0 && tr > 0 && bl > 0 && br > 0) || (tl < 0 && tr < 0 && bl < 0 && br < 0) {
         return false;
     }
 
