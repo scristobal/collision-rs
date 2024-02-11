@@ -34,15 +34,15 @@ impl Sub for P {
 
 /**  Segment in a 2D space, from `a` to `b` */
 #[wasm_bindgen]
-pub struct L {
+pub struct S {
     a: P,
     b: P,
 }
 
 #[wasm_bindgen]
-impl L {
-    pub fn new(a: i32, b: i32, c: i32, d: i32) -> L {
-        L {
+impl S {
+    pub fn new(a: i32, b: i32, c: i32, d: i32) -> S {
+        S {
             a: P::new(a, b),
             b: P::new(c, d),
         }
@@ -87,7 +87,7 @@ impl B {
 
 /** Returns true iff boxes overlap */
 #[wasm_bindgen]
-pub fn intersect_box_box(n: &B, m: &B) -> bool {
+pub fn intersect_boxes(n: &B, m: &B) -> bool {
     //  intersection on  `x` projection
     if (n.l <= m.r) && (m.l <= n.r) {
         return true;
@@ -101,8 +101,9 @@ pub fn intersect_box_box(n: &B, m: &B) -> bool {
     false
 }
 
+/** Returns true iff segments have any point in common */
 #[wasm_bindgen]
-pub fn intersection_line_line(s: &L, t: &L) -> bool {
+pub fn intersection_segments(s: &S, t: &S) -> bool {
     let s_ab = s.vec();
     let t_ab = t.vec();
 
@@ -122,7 +123,7 @@ pub fn intersection_line_line(s: &L, t: &L) -> bool {
 
 /** Returns true iff segment has any point inside box */
 #[wasm_bindgen]
-pub fn intersection_line_box(s: &L, b: &B) -> bool {
+pub fn intersection_segment_box(s: &S, b: &B) -> bool {
     let tl = b.tl().wedge(&s.vec());
     let tr = b.tr().wedge(&s.vec());
     let bl = b.bl().wedge(&s.vec());
@@ -146,7 +147,6 @@ pub fn intersection_line_box(s: &L, b: &B) -> bool {
     true
 }
 
-/** Returns true iff segments have any point in common */
 #[cfg(test)]
 mod intersect_box_box {
     use super::*;
@@ -156,7 +156,7 @@ mod intersect_box_box {
         let a = B::new(0, 10, 10, 0);
         let b = B::new(5, 15, 15, 5);
 
-        assert!(intersect_box_box(&a, &b));
+        assert!(intersect_boxes(&a, &b));
     }
 
     #[test]
@@ -164,7 +164,7 @@ mod intersect_box_box {
         let a = B::new(0, 10, 10, 0);
         let b = B::new(15, 20, 20, 15);
 
-        assert!(!intersect_box_box(&a, &b));
+        assert!(!intersect_boxes(&a, &b));
     }
 
     #[test]
@@ -172,7 +172,7 @@ mod intersect_box_box {
         let a = B::new(0, 10, 10, 1);
         let b = B::new(2, 8, 8, 2);
 
-        assert!(intersect_box_box(&a, &b));
+        assert!(intersect_boxes(&a, &b));
     }
 
     #[test]
@@ -180,7 +180,7 @@ mod intersect_box_box {
         let a = B::new(2, 8, 8, 2);
         let b = B::new(0, 10, 10, 0);
 
-        assert!(intersect_box_box(&a, &b));
+        assert!(intersect_boxes(&a, &b));
     }
 
     #[test]
@@ -188,7 +188,7 @@ mod intersect_box_box {
         let a = B::new(0, 10, 10, 0);
         let b = B::new(0, 20, 10, 10);
 
-        assert!(intersect_box_box(&a, &b));
+        assert!(intersect_boxes(&a, &b));
     }
 
     #[test]
@@ -196,80 +196,80 @@ mod intersect_box_box {
         let a = B::new(0, 10, 10, 0);
         let b = B::new(10, 20, 20, 10);
 
-        assert!(intersect_box_box(&a, &b));
+        assert!(intersect_boxes(&a, &b));
     }
 }
 
 #[cfg(test)]
-mod intersect_line_line {
+mod intersect_segments {
     use super::*;
 
     #[test]
     fn intersect() {
-        let a = L::new(0, 0, 10, 10);
-        let b = L::new(0, 10, 10, 0);
+        let a = S::new(0, 0, 10, 10);
+        let b = S::new(0, 10, 10, 0);
 
-        assert!(intersection_line_line(&a, &b))
+        assert!(intersection_segments(&a, &b))
     }
 
     #[test]
     fn not_intersect() {
-        let a = L::new(0, 0, 0, 10);
-        let b = L::new(10, 0, 10, 10);
+        let a = S::new(0, 0, 0, 10);
+        let b = S::new(10, 0, 10, 10);
 
-        assert!(!intersection_line_line(&a, &b))
+        assert!(!intersection_segments(&a, &b))
     }
 
     #[test]
     fn colinear_touching() {
-        let a = L::new(0, 0, 10, 10);
-        let b = L::new(10, 10, 20, 20);
+        let a = S::new(0, 0, 10, 10);
+        let b = S::new(10, 10, 20, 20);
 
-        assert!(intersection_line_line(&a, &b))
+        assert!(intersection_segments(&a, &b))
     }
 
     #[test]
     fn colinear_overlap() {
-        let a = L::new(0, 0, 10, 10);
-        let b = L::new(5, 5, 20, 20);
+        let a = S::new(0, 0, 10, 10);
+        let b = S::new(5, 5, 20, 20);
 
-        assert!(intersection_line_line(&a, &b))
+        assert!(intersection_segments(&a, &b))
     }
 
     #[test]
     fn colinear_not_touching() {
-        let a = L::new(0, 0, 10, 10);
-        let b = L::new(11, 11, 20, 20);
+        let a = S::new(0, 0, 10, 10);
+        let b = S::new(11, 11, 20, 20);
 
-        assert!(!intersection_line_line(&a, &b))
+        assert!(!intersection_segments(&a, &b))
     }
 }
 
 #[cfg(test)]
-mod intersection_line_box {
+mod intersection_segment_box {
     use super::*;
 
     #[test]
     fn intersect() {
-        let s = L::new(0, 0, 10, 10);
+        let s = S::new(0, 0, 10, 10);
         let b = B::new(5, 15, 15, 5);
 
-        assert!(intersection_line_box(&s, &b));
+        assert!(intersection_segment_box(&s, &b));
     }
 
     #[test]
     fn no_intersect() {
-        let s = L::new(0, 0, 10, 10);
+        let s = S::new(0, 0, 10, 10);
         let b = B::new(15, 20, 20, 15);
 
-        assert!(!intersection_line_box(&s, &b));
+        assert!(!intersection_segment_box(&s, &b));
     }
 
     #[test]
-    fn line_contained() {
-        let s = L::new(5, 5, 10, 10);
+    fn segment_contained() {
+        let s = S::new(5, 5, 10, 10);
         let b = B::new(0, 15, 15, 0);
 
-        assert!(intersection_line_box(&s, &b));
+        assert!(intersection_segment_box(&s, &b));
     }
 }
