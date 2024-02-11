@@ -2,7 +2,7 @@ use std::ops::Sub;
 
 use wasm_bindgen::prelude::*;
 
-// Point in a 2D space with coordinates (`x`,`y`)
+/**  Point in a 2D space with coordinates (`x`,`y`) */
 #[wasm_bindgen]
 #[derive(Clone, Copy)]
 pub struct P {
@@ -32,7 +32,7 @@ impl Sub for P {
     }
 }
 
-// Segment in a 2D space, from `a` to `b`
+/**  Segment in a 2D space, from `a` to `b` */
 #[wasm_bindgen]
 pub struct L {
     a: P,
@@ -49,7 +49,7 @@ impl L {
     }
 }
 
-// Axis aligned box, `l` = left, `t` = top, `r` = right, `b` = bottom
+/** Axis aligned box, `l` = left, `t` = top, `r` = right, `b` = bottom */
 #[wasm_bindgen]
 pub struct B {
     l: i32,
@@ -65,7 +65,7 @@ impl B {
     }
 }
 
-// Computes the intersection between two boxes
+/** Returns true iff boxes overlap */
 #[wasm_bindgen]
 pub fn intersect_box_box(n: &B, m: &B) -> bool {
     (n.l <= m.r) && (m.l <= n.r) && (n.t <= m.b) && (m.t <= n.b)
@@ -76,16 +76,35 @@ pub fn intersection_line_line(s: &L, t: &L) -> bool {
     let s_ab = s.b - s.a;
     let t_ab = t.b - t.a;
 
-    s_ab.wedge(&(t.a - s.a)) * s_ab.wedge(&(t.b - s.a)) <= 0
-        && t_ab.wedge(&(s.a - t.a)) * t_ab.wedge(&(s.b - t.a)) <= 0
+    if s_ab.wedge(&(t.a - s.a)) * s_ab.wedge(&(t.b - s.a)) < 0
+        && t_ab.wedge(&(s.a - t.a)) * t_ab.wedge(&(s.b - t.a)) < 0
+    {
+        return true;
+    }
+
+    intersect_box_box(
+        &B::new(
+            s.a.x.min(s.b.x),
+            s.a.y.min(s.b.y),
+            s.a.x.max(s.b.x),
+            s.a.y.max(s.b.y),
+        ),
+        &B::new(
+            t.a.x.min(t.b.x),
+            t.a.y.min(t.b.y),
+            t.a.x.max(t.b.x),
+            t.a.y.max(t.b.y),
+        ),
+    )
 }
 
+/** Returns true iff segments have any point in common */
 #[cfg(test)]
 mod intersect_box_box {
     use super::*;
 
     #[test]
-    fn a_b_overlap() {
+    fn overlap() {
         let a = B::new(0, 0, 10, 10);
         let b = B::new(5, 5, 15, 15);
 
@@ -93,7 +112,7 @@ mod intersect_box_box {
     }
 
     #[test]
-    fn a_b_no_overlap() {
+    fn no_overlap() {
         let a = B::new(0, 0, 10, 10);
         let b = B::new(15, 15, 20, 20);
 
@@ -101,7 +120,7 @@ mod intersect_box_box {
     }
 
     #[test]
-    fn a_inside_b() {
+    fn contain_outer() {
         let a = B::new(0, 0, 10, 10);
         let b = B::new(2, 2, 8, 8);
 
@@ -109,7 +128,7 @@ mod intersect_box_box {
     }
 
     #[test]
-    fn b_inside_a() {
+    fn contain_inner() {
         let a = B::new(2, 2, 8, 8);
         let b = B::new(0, 0, 10, 10);
 
@@ -117,7 +136,7 @@ mod intersect_box_box {
     }
 
     #[test]
-    fn a_b_share_border() {
+    fn share_border() {
         let a = B::new(0, 0, 10, 10);
         let b = B::new(0, 10, 10, 20);
 
@@ -125,7 +144,7 @@ mod intersect_box_box {
     }
 
     #[test]
-    fn a_b_share_corner() {
+    fn share_corner() {
         let a = B::new(0, 0, 10, 10);
         let b = B::new(10, 10, 20, 20);
 
@@ -138,7 +157,7 @@ mod intersect_line_line {
     use super::*;
 
     #[test]
-    fn a_b_intersect() {
+    fn intersect() {
         let a = L::new(0, 0, 10, 10);
         let b = L::new(0, 10, 10, 0);
 
@@ -146,7 +165,7 @@ mod intersect_line_line {
     }
 
     #[test]
-    fn a_b_not_intersect() {
+    fn not_intersect() {
         let a = L::new(0, 0, 0, 10);
         let b = L::new(10, 0, 10, 10);
 
@@ -154,7 +173,7 @@ mod intersect_line_line {
     }
 
     #[test]
-    fn a_b_collinear_touching() {
+    fn colinear_touching() {
         let a = L::new(0, 0, 10, 10);
         let b = L::new(10, 10, 20, 20);
 
@@ -162,7 +181,15 @@ mod intersect_line_line {
     }
 
     #[test]
-    fn a_b_collinear_not_touching() {
+    fn colinear_overlap() {
+        let a = L::new(0, 0, 10, 10);
+        let b = L::new(5, 5, 20, 20);
+
+        assert!(intersection_line_line(&a, &b))
+    }
+
+    #[test]
+    fn colinear_not_touching() {
         let a = L::new(0, 0, 10, 10);
         let b = L::new(11, 11, 20, 20);
 
