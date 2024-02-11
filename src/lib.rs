@@ -1,94 +1,171 @@
-use glam::{IVec2, IVec4};
+use std::ops::Sub;
 
-pub fn overlap(a: &IVec4, b: &IVec4) -> bool {
-    (a.x <= b.z) && (b.x <= a.z) && (a.y <= b.w) && (b.y <= a.w)
+use wasm_bindgen::prelude::*;
+
+// Point in a 2D space with coordinates (`x`,`y`)
+#[wasm_bindgen]
+#[derive(Clone, Copy)]
+pub struct P {
+    x: i32,
+    y: i32,
 }
 
-pub fn intersection([a, b]: [&IVec2; 2], [c, d]: [&IVec2; 2]) -> bool {
-    let ab = *b - *a;
-    let cd = *d - *c;
+#[wasm_bindgen]
+impl P {
+    pub fn new(x: i32, y: i32) -> P {
+        P { x, y }
+    }
 
-    ab.perp_dot(*c - *a) * ab.perp_dot(*d - *a) <= 0
-        && cd.perp_dot(*a - *c) * cd.perp_dot(*b - *c) <= 0
+    pub fn wedge(&self, rhs: &P) -> i32 {
+        self.x * rhs.y - self.y * rhs.x
+    }
 }
 
+impl Sub for P {
+    type Output = Self;
+
+    fn sub(self, other: Self) -> Self::Output {
+        Self {
+            x: self.x - other.x,
+            y: self.y - other.y,
+        }
+    }
+}
+
+// Segment in a 2D space, from `a` to `b`
+#[wasm_bindgen]
+pub struct L {
+    a: P,
+    b: P,
+}
+
+#[wasm_bindgen]
+impl L {
+    pub fn new(a: i32, b: i32, c: i32, d: i32) -> L {
+        L {
+            a: P::new(a, b),
+            b: P::new(c, d),
+        }
+    }
+}
+
+// Axis aligned box, `l` = left, `t` = top, `r` = right, `b` = bottom
+#[wasm_bindgen]
+pub struct B {
+    l: i32,
+    t: i32,
+    r: i32,
+    b: i32,
+}
+
+#[wasm_bindgen]
+impl B {
+    pub fn new(l: i32, t: i32, r: i32, b: i32) -> B {
+        B { l, t, r, b }
+    }
+}
+
+// Computes the intersection between two boxes
+#[wasm_bindgen]
+pub fn intersect_box_box(n: &B, m: &B) -> bool {
+    (n.l <= m.r) && (m.l <= n.r) && (n.t <= m.b) && (m.t <= n.b)
+}
+
+#[wasm_bindgen]
+pub fn intersection_line_line(s: &L, t: &L) -> bool {
+    let s_ab = s.b - s.a;
+    let t_ab = t.b - t.a;
+
+    s_ab.wedge(&(t.a - s.a)) * s_ab.wedge(&(t.b - s.a)) <= 0
+        && t_ab.wedge(&(s.a - t.a)) * t_ab.wedge(&(s.b - t.a)) <= 0
+}
 
 #[cfg(test)]
-mod overlap {
+mod intersect_box_box {
     use super::*;
 
     #[test]
     fn a_b_overlap() {
-        let a = IVec4::new(0, 0, 10, 10);
-        let b = IVec4::new(5, 5, 15, 15);
-        assert!(overlap(&a, &b));
+        let a = B::new(0, 0, 10, 10);
+        let b = B::new(5, 5, 15, 15);
+
+        assert!(intersect_box_box(&a, &b));
     }
 
     #[test]
     fn a_b_no_overlap() {
-        let a = IVec4::new(0, 0, 10, 10);
-        let b = IVec4::new(15, 15, 20, 20);
-        assert!(!overlap(&a, &b));
+        let a = B::new(0, 0, 10, 10);
+        let b = B::new(15, 15, 20, 20);
+
+        assert!(!intersect_box_box(&a, &b));
     }
 
     #[test]
     fn a_inside_b() {
-        let a = IVec4::new(0, 0, 10, 10);
-        let b = IVec4::new(2, 2, 8, 8);
-        assert!(overlap(&a, &b));
+        let a = B::new(0, 0, 10, 10);
+        let b = B::new(2, 2, 8, 8);
+
+        assert!(intersect_box_box(&a, &b));
     }
 
     #[test]
     fn b_inside_a() {
-        let a = IVec4::new(0, 0, 10, 10);
-        let b = IVec4::new(2, 2, 8, 8);
+        let a = B::new(2, 2, 8, 8);
+        let b = B::new(0, 0, 10, 10);
 
-        assert!(overlap(&a, &b));
+        assert!(intersect_box_box(&a, &b));
     }
 
     #[test]
     fn a_b_share_border() {
-        let a = IVec4::new(0, 0, 10, 10);
-        let b = IVec4::new(0, 10, 10, 20);
+        let a = B::new(0, 0, 10, 10);
+        let b = B::new(0, 10, 10, 20);
 
-        assert!(overlap(&a, &b));
+        assert!(intersect_box_box(&a, &b));
     }
 
     #[test]
     fn a_b_share_corner() {
-        let a = IVec4::new(0, 0, 10, 10);
-        let b = IVec4::new(10, 10, 20, 20);
+        let a = B::new(0, 0, 10, 10);
+        let b = B::new(10, 10, 20, 20);
 
-        assert!(overlap(&a, &b));
+        assert!(intersect_box_box(&a, &b));
     }
 }
 
 #[cfg(test)]
-mod intersection {
+mod intersect_line_line {
     use super::*;
 
     #[test]
     fn a_b_intersect() {
-        let a = [&IVec2::new(0, 0), &IVec2::new(10, 10)];
-        let b = [&IVec2::new(0,10), &IVec2::new(10,0)];
+        let a = L::new(0, 0, 10, 10);
+        let b = L::new(0, 10, 10, 0);
 
-        assert!(intersection(a,b))
+        assert!(intersection_line_line(&a, &b))
     }
-
 
     #[test]
     fn a_b_not_intersect() {
-        let a = [&IVec2::new(0, 0), &IVec2::new(0, 10)];
-        let b = [&IVec2::new(10,0), &IVec2::new(10,10)];
+        let a = L::new(0, 0, 0, 10);
+        let b = L::new(10, 0, 10, 10);
 
-        assert!(!intersection(a,b))
+        assert!(!intersection_line_line(&a, &b))
     }
 
     #[test]
-    fn a_b_collinear() {
-        let a = [&IVec2::new(0, 0), &IVec2::new(10, 10)];
-        let b = [&IVec2::new(10,10), &IVec2::new(20,20)];
+    fn a_b_collinear_touching() {
+        let a = L::new(0, 0, 10, 10);
+        let b = L::new(10, 10, 20, 20);
 
-        assert!(intersection(a,b))
+        assert!(intersection_line_line(&a, &b))
+    }
+
+    #[test]
+    fn a_b_collinear_not_touching() {
+        let a = L::new(0, 0, 10, 10);
+        let b = L::new(11, 11, 20, 20);
+
+        assert!(!intersection_line_line(&a, &b))
     }
 }
