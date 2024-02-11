@@ -124,3 +124,40 @@ mod intersection_segment_box {
         assert!(intersection_segment_box(&s, &b));
     }
 }
+
+#[cfg(test)]
+mod traits {
+    use crate::*;
+
+    #[test]
+    fn segment_box() {
+        let s = S::new(0, 0, 10, 10);
+        let b = B::new(5, 15, 15, 5);
+
+        assert!(s.intersect(&b));
+    }
+
+    #[test]
+    fn box_box() {
+        let a = B::new(0, 10, 10, 0);
+        let b = B::new(5, 15, 15, 5);
+
+        assert!(a.intersect(&b));
+    }
+
+    #[test]
+    fn segment_segment() {
+        let a = S::new(0, 0, 10, 10);
+        let b = S::new(0, 10, 10, 0);
+
+        assert!(a.intersect(&b));
+    }
+
+    #[test]
+    fn segment_segment_not_intersect() {
+        let a = S::new(0, 0, 0, 10);
+        let b = S::new(10, 0, 10, 10);
+
+        assert!(!a.intersect(&b));
+    }
+}

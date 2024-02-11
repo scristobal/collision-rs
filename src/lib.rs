@@ -4,6 +4,10 @@ use std::ops::Sub;
 
 use wasm_bindgen::prelude::*;
 
+trait Intersectable<T> {
+    fn intersect(&self, other: &T) -> bool;
+}
+
 /**  Point in a 2D space with coordinates (`x`,`y`) */
 #[wasm_bindgen]
 #[derive(Clone, Copy)]
@@ -55,6 +59,18 @@ impl S {
     }
 }
 
+impl Intersectable<Self> for S {
+    fn intersect(&self, other: &Self) -> bool {
+        intersection_segments(self, other)
+    }
+}
+
+impl Intersectable<B> for S {
+    fn intersect(&self, other: &B) -> bool {
+        intersection_segment_box(self, other)
+    }
+}
+
 /** Axis aligned box, `l` = left, `t` = top, `r` = right, `b` = bottom */
 #[wasm_bindgen]
 pub struct B {
@@ -84,6 +100,18 @@ impl B {
 
     pub fn br(&self) -> P {
         P::new(self.r, self.b)
+    }
+}
+
+impl Intersectable<Self> for B {
+    fn intersect(&self, other: &Self) -> bool {
+        intersect_boxes(self, other)
+    }
+}
+
+impl Intersectable<S> for B {
+    fn intersect(&self, other: &S) -> bool {
+        intersection_segment_box(other, self)
     }
 }
 
