@@ -47,6 +47,10 @@ impl L {
             b: P::new(c, d),
         }
     }
+
+    pub fn vec(&self) -> P {
+        self.b - self.a
+    }
 }
 
 /** Axis aligned box, `l` = left, `t` = top, `r` = right, `b` = bottom */
@@ -63,39 +67,92 @@ impl B {
     pub fn new(l: i32, t: i32, r: i32, b: i32) -> B {
         B { l, t, r, b }
     }
+
+    pub fn tl(&self) -> P {
+        P::new(self.l, self.t)
+    }
+
+    pub fn tr(&self) -> P {
+        P::new(self.r, self.t)
+    }
+
+    pub fn bl(&self) -> P {
+        P::new(self.l, self.b)
+    }
+
+    pub fn br(&self) -> P {
+        P::new(self.r, self.b)
+    }
 }
 
 /** Returns true iff boxes overlap */
 #[wasm_bindgen]
 pub fn intersect_box_box(n: &B, m: &B) -> bool {
-    (n.l <= m.r) && (m.l <= n.r) && (n.t <= m.b) && (m.t <= n.b)
+    //  intersection on  `x` projection
+    if (n.l <= m.r) && (m.l <= n.r) {
+        return true;
+    }
+
+    //  intersection on `y` projection
+    if (n.t <= m.b) && (m.t <= n.b) {
+        return true;
+    }
+
+    false
 }
 
 #[wasm_bindgen]
 pub fn intersection_line_line(s: &L, t: &L) -> bool {
-    let s_ab = s.b - s.a;
-    let t_ab = t.b - t.a;
+    let s_ab = s.vec();
+    let t_ab = t.vec();
 
-    if s_ab.wedge(&(t.a - s.a)) * s_ab.wedge(&(t.b - s.a)) < 0
-        && t_ab.wedge(&(s.a - t.a)) * t_ab.wedge(&(s.b - t.a)) < 0
-    {
-        return true;
+    //  both points of `t` are on the same side of `s`
+    if s_ab.wedge(&(t.a - s.a)) * s_ab.wedge(&(t.b - s.a)) > 0 {
+        return false;
     }
 
-    intersect_box_box(
-        &B::new(
-            s.a.x.min(s.b.x),
-            s.a.y.min(s.b.y),
-            s.a.x.max(s.b.x),
-            s.a.y.max(s.b.y),
-        ),
-        &B::new(
-            t.a.x.min(t.b.x),
-            t.a.y.min(t.b.y),
-            t.a.x.max(t.b.x),
-            t.a.y.max(t.b.y),
-        ),
-    )
+    //  both points of `s` are on the same side of `t`
+    if t_ab.wedge(&(s.a - t.a)) * t_ab.wedge(&(s.b - t.a)) > 0 {
+        return false;
+    }
+
+    // colinear case, check intersection on `x` projections
+    (s.a.x.min(s.b.x) <= t.a.x.max(t.b.x)) && (t.a.x.min(t.b.x) <= s.a.x.max(s.b.x))
+}
+
+/** Returns true iff segment has any point inside box */
+#[wasm_bindgen]
+pub fn intersection_line_box(s: &L, b: &B) -> bool {
+    let tl = b.tl().wedge(&s.vec());
+    let tr = b.tr().wedge(&s.vec());
+    let bl = b.bl().wedge(&s.vec());
+    let br = b.br().wedge(&s.vec());
+
+    // all four corners are on the same side of `s`
+    if tl > 0 && tr > 0 && bl > 0 && br > 0 {
+        println!("exit on 1st condition");
+        return false;
+    }
+
+    if tl < 0 && tr < 0 && bl < 0 && br < 0 {
+        println!("exit on 2nd condition");
+        return false;
+    }
+
+    // check `x`` projections
+    if s.a.x.max(s.b.x) < b.l || s.a.x.min(s.b.x) > b.r {
+        println!("exit on 3rd condition");
+        return false;
+    }
+
+    // check `y` projections
+    if s.a.y.max(s.b.y) < b.b || s.a.y.min(s.b.y) > b.t {
+        println!("exit on 4th condition");
+
+        return false;
+    }
+
+    true
 }
 
 /** Returns true iff segments have any point in common */
@@ -105,48 +162,48 @@ mod intersect_box_box {
 
     #[test]
     fn overlap() {
-        let a = B::new(0, 0, 10, 10);
-        let b = B::new(5, 5, 15, 15);
+        let a = B::new(0, 10, 10, 0);
+        let b = B::new(5, 15, 15, 5);
 
         assert!(intersect_box_box(&a, &b));
     }
 
     #[test]
     fn no_overlap() {
-        let a = B::new(0, 0, 10, 10);
-        let b = B::new(15, 15, 20, 20);
+        let a = B::new(0, 10, 10, 0);
+        let b = B::new(15, 20, 20, 15);
 
         assert!(!intersect_box_box(&a, &b));
     }
 
     #[test]
     fn contain_outer() {
-        let a = B::new(0, 0, 10, 10);
-        let b = B::new(2, 2, 8, 8);
+        let a = B::new(0, 10, 10, 1);
+        let b = B::new(2, 8, 8, 2);
 
         assert!(intersect_box_box(&a, &b));
     }
 
     #[test]
     fn contain_inner() {
-        let a = B::new(2, 2, 8, 8);
-        let b = B::new(0, 0, 10, 10);
+        let a = B::new(2, 8, 8, 2);
+        let b = B::new(0, 10, 10, 0);
 
         assert!(intersect_box_box(&a, &b));
     }
 
     #[test]
     fn share_border() {
-        let a = B::new(0, 0, 10, 10);
-        let b = B::new(0, 10, 10, 20);
+        let a = B::new(0, 10, 10, 0);
+        let b = B::new(0, 20, 10, 10);
 
         assert!(intersect_box_box(&a, &b));
     }
 
     #[test]
     fn share_corner() {
-        let a = B::new(0, 0, 10, 10);
-        let b = B::new(10, 10, 20, 20);
+        let a = B::new(0, 10, 10, 0);
+        let b = B::new(10, 20, 20, 10);
 
         assert!(intersect_box_box(&a, &b));
     }
@@ -194,5 +251,34 @@ mod intersect_line_line {
         let b = L::new(11, 11, 20, 20);
 
         assert!(!intersection_line_line(&a, &b))
+    }
+}
+
+#[cfg(test)]
+mod intersection_line_box {
+    use super::*;
+
+    #[test]
+    fn intersect() {
+        let s = L::new(0, 0, 10, 10);
+        let b = B::new(5, 15, 15, 5);
+
+        assert!(intersection_line_box(&s, &b));
+    }
+
+    #[test]
+    fn no_intersect() {
+        let s = L::new(0, 0, 10, 10);
+        let b = B::new(15, 20, 20, 15);
+
+        assert!(!intersection_line_box(&s, &b));
+    }
+
+    #[test]
+    fn line_contained() {
+        let s = L::new(5, 5, 10, 10);
+        let b = B::new(0, 15, 15, 0);
+
+        assert!(intersection_line_box(&s, &b));
     }
 }
