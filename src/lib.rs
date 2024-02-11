@@ -130,25 +130,20 @@ pub fn intersection_line_box(s: &L, b: &B) -> bool {
 
     // all four corners are on the same side of `s`
     if tl > 0 && tr > 0 && bl > 0 && br > 0 {
-        println!("exit on 1st condition");
         return false;
     }
 
     if tl < 0 && tr < 0 && bl < 0 && br < 0 {
-        println!("exit on 2nd condition");
         return false;
     }
 
     // check `x`` projections
     if s.a.x.max(s.b.x) < b.l || s.a.x.min(s.b.x) > b.r {
-        println!("exit on 3rd condition");
         return false;
     }
 
     // check `y` projections
     if s.a.y.max(s.b.y) < b.b || s.a.y.min(s.b.y) > b.t {
-        println!("exit on 4th condition");
-
         return false;
     }
 
